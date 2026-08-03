@@ -11,7 +11,6 @@ import {
   Compass,
   Sparkles,
   ArrowRight,
-  Building2,
   CheckCircle2,
 } from "lucide-react";
 import { searchLocalitySuggestions, LocalitySuggestion } from "@/services/search";
