@@ -224,7 +224,40 @@ EXPECTED JSON SCHEMA:
    * Calls Anthropic Claude Messages API with exponential backoff retry mechanism
    */
   public async executeClaudeRequest(systemPrompt: string, userPrompt: string): Promise<string> {
+    const groqKey = process.env.GROQ_API_KEY;
     const apiKey = this.getApiKey();
+
+    if (groqKey) {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${groqKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.1,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ]
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new ClaudeAPIError(`Groq API returned HTTP ${res.status}: ${errText}`, res.status);
+      }
+
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (typeof content === "string") {
+        return content;
+      }
+      throw new ClaudeError("Groq response did not contain valid text content.");
+    }
+
     const maxRetries = 3;
     let lastError: unknown;
 
