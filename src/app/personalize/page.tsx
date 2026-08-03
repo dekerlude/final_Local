@@ -194,20 +194,7 @@ function PersonalizeContent() {
                   <Button onClick={handleReset} variant="outline" className="flex-1">
                     Adjust Priorities
                   </Button>
-                  <Button
-                    onClick={() => {
-                      const params = new URLSearchParams({
-                        neighborhoodId: neighborhoodId!,
-                        priorities: selectedPriorities.join(','),
-                        personalizedScore: result.personalizedScore.toString(),
-                        factorBreakdown: JSON.stringify(result.factorBreakdown),
-                      });
-                      router.push(`/summary?${params.toString()}`);
-                    }}
-                    className="flex-1 bg-[#01472e] hover:bg-[#01472e]/90 text-white"
-                  >
-                    Full Analysis
-                  </Button>
+
                 </div>
               </div>
             )}
