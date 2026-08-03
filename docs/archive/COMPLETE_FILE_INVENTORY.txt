@@ -1,0 +1,105 @@
+# FEATURE/DEVELOP COMPLETE FILE INVENTORY
+Generated: 2026-07-29
+Source: origin/feature/develop (GitHub)
+
+## BACKEND FILES (36 files)
+
+### Main App
+- backend/app.py (41 lines)
+- backend/__init__.py (empty)
+
+### Maps Module (11 files)
+- backend/maps/__init__.py (1 line)
+- backend/maps/routes.py (full search + neighborhood endpoints)
+- backend/maps/models.py (Pydantic response schemas)
+- backend/maps/scoring.py (scoring algorithm)
+- backend/maps/test_app.py (test file)
+- backend/maps/API_CONTRACT.md (API documentation)
+- backend/maps/BUILD_SUMMARY.md (implementation summary)
+- backend/maps/README.md (module documentation)
+- backend/maps/TASKS.md (task breakdown)
+- backend/maps/data/neighborhoods.json (89 test neighborhoods)
+- backend/maps/services/live_data.py (OpenStreetMap integration)
+- backend/maps/services/__init__.py (empty)
+
+### Database (4 files)
+- backend/database/__init__.py
+- backend/database/connection.py
+- backend/database/models.py
+- backend/database/schema.sql
+
+### Routes (5 files)
+- backend/routes/__init__.py
+- backend/routes/search.py (STUB - empty)
+- backend/routes/neighborhood.py (STUB - empty)
+- backend/routes/personalize.py (IMPLEMENTED)
+- backend/routes/summary.py (IMPLEMENTED)
+
+### Schemas (2 files)
+- backend/schemas/__init__.py
+- backend/schemas/neighborhood.py
+
+### Services (5 files)
+- backend/services/__init__.py
+- backend/services/ai.py (OpenAI integration)
+- backend/services/mapbox.py (Mapbox geocoding)
+- backend/services/personalization.py (personalization logic)
+- backend/services/scoring.py (scoring algorithm)
+
+### Configuration
+- backend/requirements.txt (Python dependencies)
+
+## FRONTEND FILES (27 files)
+
+### Pages (5 files)
+- src/app/layout.tsx (Root layout)
+- src/app/page.tsx (Home - STUB)
+- src/app/globals.css (Global styles)
+- src/app/dashboard/page.tsx (Dashboard - STUB)
+- src/app/personalize/page.tsx (FULLY IMPLEMENTED - 237 lines)
+- src/app/summary/page.tsx (Summary - STUB)
+
+### UI Components (2 files)
+- src/components/ui/Button.tsx
+- src/components/ui/Card.tsx
+
+### Layout Components (1 file)
+- src/components/layout/Navbar.tsx
+
+### Personalize Components (10 files)
+- src/components/personalize/PrioritySelector.tsx
+- src/components/personalize/PriorityCard.tsx
+- src/components/personalize/RankingList.tsx
+- src/components/personalize/RankingBadge.tsx
+- src/components/personalize/ScoreBreakdown.tsx
+- src/components/personalize/StrengthCard.tsx
+- src/components/personalize/TradeoffCard.tsx
+- src/components/personalize/AISummaryCard.tsx
+- src/components/personalize/LoadingState.tsx
+- src/components/personalize/ErrorState.tsx
+
+### Utilities (2 files)
+- src/lib/api.ts (API client)
+- src/types/neighborhood.ts (TypeScript types)
+
+### Styles (1 file)
+- src/tokens.css (Design tokens)
+
+## PROJECT FILES (7 files)
+- package.json (frontend dependencies)
+- tailwind.config.ts (Tailwind CSS config)
+- tsconfig.json (TypeScript config)
+- next.config.ts (Next.js config)
+- postcss.config.js (PostCSS config)
+- .eslintrc.json (ESLint config)
+- .gitignore (Git ignore rules)
+
+## DOCUMENTATION FILES (5 files)
+- README.md
+- claude.md (Project guidelines)
+- spec.md (Specification)
+- Scaffold.md (Architecture scaffold)
+- TODO.md (Development roadmap)
+
+## TOTAL: 75+ FILES
+

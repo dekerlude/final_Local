@@ -1,0 +1,503 @@
+==================== BACKEND/APP.PY ====================
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from backend.routes import personalize, summary
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("LocalLens backend starting...")
+    yield
+    # Shutdown
+    print("LocalLens backend shutting down...")
+
+app = FastAPI(
+    title="LocalLens API",
+    description="AI-powered neighborhood score API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register routes
+app.include_router(personalize.router)
+app.include_router(summary.router)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+==================== BACKEND/MAPS/__INIT__.PY ====================
+from .routes import router
+
+__all__ = ["router"]
+
+==================== BACKEND/MAPS/MODELS.PY ====================
+from pydantic import BaseModel, Field
+
+
+class NeighborhoodBasic(BaseModel):
+    """A neighborhood in search results."""
+    id: int
+    name: str
+    city: str
+    state: str
+    latitude: float
+    longitude: float
+
+
+class SearchResponse(BaseModel):
+    """Response from /search endpoint."""
+    query: str
+    results: list[NeighborhoodBasic]
+    count: int
+
+
+class MetricScore(BaseModel):
+    """Individual metric score for a neighborhood."""
+    name: str
+    score: int = Field(ge=0, le=100)
+    description: str
+
+
+class NeighborhoodResponse(BaseModel):
+    """Full neighborhood data with score and metrics."""
+    id: int
+    name: str
+    city: str
+    state: str
+    latitude: float
+    longitude: float
+    population: int
+    area_sqmi: float
+    overall_score: int = Field(ge=0, le=100)
+    metrics: list[MetricScore]
+
+==================== BACKEND/MAPS/ROUTES.PY ====================
+"""FastAPI routes for maps and neighborhood data."""
+
+import json
+from pathlib import Path
+from fastapi import APIRouter, HTTPException, Query
+
+from .models import SearchResponse, NeighborhoodResponse, NeighborhoodBasic, MetricScore
+from .scoring import calculate_neighborhood_score
+from .services.live_data import get_neighborhood_with_fallback, search_live
+
+
+router = APIRouter(prefix="/api/maps", tags=["maps"])
+
+# Load neighborhoods data
+DATA_FILE = Path(__file__).parent / "data" / "neighborhoods.json"
+
+
+def load_neighborhoods() -> dict:
+    """Load neighborhoods from JSON file."""
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
+
+
+@router.get("/search", response_model=SearchResponse)
+def search_neighborhoods(q: str = Query(..., min_length=1), live: bool = Query(False)):
+    """
+    Search for neighborhoods by name or city.
+
+    Query Parameters:
+    - q: Search query (neighborhood or city name, case-insensitive)
+    - live: If true, also search using live Nominatim geocoding for any city
+
+    Returns:
+    - List of matching neighborhoods (local + live if enabled)
+    """
+    data = load_neighborhoods()
+    query_lower = q.lower()
+
+    # First: search local mock data (fast path, always enabled)
+    matches = [
+        NeighborhoodBasic(**n)
+        for n in data["neighborhoods"]
+        if query_lower in n["name"].lower() or query_lower in n["city"].lower()
+    ]
+
+    # Second: if live=true and no local matches, try live geocoding
+    if live and not matches:
+        try:
+            live_results = search_live(q)
+            matches = [NeighborhoodBasic(**r) for r in live_results]
+        except Exception as e:
+            # Log but don't crash — just return local results
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Live search error for '{q}': {e}")
+
+    return SearchResponse(query=q, results=matches, count=len(matches))
+
+
+@router.get("/neighborhood/{neighborhood_id}", response_model=NeighborhoodResponse)
+def get_neighborhood(neighborhood_id: int, live: bool = Query(False)):
+    """
+    Get detailed neighborhood data with scores.
+
+    Path Parameters:
+    - neighborhood_id: The neighborhood ID
+
+    Query Parameters:
+    - live: If true, fetch real data from OpenStreetMap APIs; falls back to mock on error
+
+    Returns:
+    - Neighborhood data with overall score and 6 metric scores
+    """
+    data = load_neighborhoods()
+
+    # Find neighborhood to get name, city, state
+    neighborhood = None
+    for n in data["neighborhoods"]:
+        if n["id"] == neighborhood_id:
+            neighborhood = n
+            break
+
+    if not neighborhood:
+        raise HTTPException(status_code=404, detail="Neighborhood not found")
+
+    # Fetch data (live or mock)
+    if live:
+        neighborhood_data = get_neighborhood_with_fallback(
+            neighborhood_id,
+            neighborhood["name"],
+            neighborhood["city"],
+            neighborhood["state"],
+            use_live=True,
+        )
+        if not neighborhood_data:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to fetch neighborhood data",
+            )
+
+        # If live data returned metrics, use them; otherwise calculate
+        if "metrics" in neighborhood_data and neighborhood_data.get("live"):
+            metrics = [
+                MetricScore(
+                    name=m["name"],
+                    score=m["score"],
+                    description=m["description"],
+                )
+                for m in neighborhood_data["metrics"]
+            ]
+            overall_score = neighborhood_data["overall_score"]
+        else:
+            # Mock data path
+            overall_score, metrics = calculate_neighborhood_score(neighborhood_id)
+    else:
+        # Default behavior: use mock data and calculated scores
+        overall_score, metrics = calculate_neighborhood_score(neighborhood_id)
+
+    return NeighborhoodResponse(
+        id=neighborhood["id"],
+        name=neighborhood["name"],
+        city=neighborhood["city"],
+        state=neighborhood["state"],
+        latitude=neighborhood["latitude"],
+        longitude=neighborhood["longitude"],
+        population=neighborhood["population"],
+        area_sqmi=neighborhood["area_sqmi"],
+        overall_score=overall_score,
+        metrics=metrics,
+    )
+
+==================== BACKEND/MAPS/SCORING.PY ====================
+"""Mock scoring algorithm for neighborhoods."""
+
+from .models import MetricScore
+
+
+METRICS = [
+    "Safety",
+    "Healthcare",
+    "Education",
+    "Connectivity",
+    "Environment",
+    "Infrastructure",
+]
+
+METRIC_DESCRIPTIONS = {
+    "Safety": "Crime rate and public safety measures",
+    "Healthcare": "Access to hospitals and medical facilities",
+    "Education": "School quality and educational institutions",
+    "Connectivity": "Public transit and traffic conditions",
+    "Environment": "Green spaces and air quality",
+    "Infrastructure": "Roads, utilities, and public services",
+}
+
+
+def calculate_neighborhood_score(neighborhood_id: int) -> tuple[int, list[MetricScore]]:
+    """
+    Calculate mock scores for a neighborhood.
+
+    Args:
+        neighborhood_id: The neighborhood ID (used for deterministic scoring)
+
+    Returns:
+        Tuple of (overall_score, list of MetricScore objects)
+    """
+    metric_scores = []
+    scores = []
+
+    for idx, metric_name in enumerate(METRICS):
+        # Deterministic but varied: each neighborhood/metric combo gets consistent score
+        base = (neighborhood_id * 13 + idx * 7) % 100
+        # Add slight variance based on metric and neighborhood
+        variance = ((neighborhood_id + idx) * 11) % 20 - 10
+        score = max(0, min(100, base + variance))
+
+        metric_scores.append(
+            MetricScore(
+                name=metric_name,
+                score=score,
+                description=METRIC_DESCRIPTIONS[metric_name],
+            )
+        )
+        scores.append(score)
+
+    # Overall score is average of all metrics
+    overall_score = round(sum(scores) / len(scores))
+
+    return overall_score, metric_scores
+
+==================== BACKEND/ROUTES/PERSONALIZE.PY ====================
+from fastapi import APIRouter, HTTPException
+from backend.schemas.neighborhood import PersonalizationRequest, PersonalizedScoreResponse
+from backend.services.personalization import personalize_neighborhood_score
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from backend.database.connection import get_db
+from backend.database.models import Neighborhood, Score
+
+router = APIRouter(prefix="/personalize", tags=["personalize"])
+
+
+@router.post("", response_model=PersonalizedScoreResponse)
+async def personalize_score(
+    request: PersonalizationRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Calculate personalized neighborhood score based on user's priorities.
+
+    Accepts exactly 5 unique priorities and returns:
+    - personalized score (0-100)
+    - factor breakdown with scores for all 10 factors
+    - strongest 3 factors
+    - weakest 3 factors
+    """
+    # Fetch neighborhood from database
+    neighborhood = db.query(Neighborhood).filter(
+        Neighborhood.id == request.neighborhood_id
+    ).first()
+
+    if not neighborhood:
+        raise HTTPException(status_code=404, detail="Neighborhood not found")
+
+    # Fetch neighborhood scores
+    scores = db.query(Score).filter(
+        Score.neighborhood_id == request.neighborhood_id
+    ).first()
+
+    if not scores:
+        raise HTTPException(status_code=404, detail="Neighborhood scores not found")
+
+    # Map database scores to metrics
+    # TODO: Add missing fields to Score model (amenities_score, affordability_score, nightlife_score)
+    neighborhood_metrics = {
+        'safety': scores.safety_score,
+        'environment': scores.environment_score or 50,
+        'transport': scores.connectivity_score,
+        'amenities': getattr(scores, 'amenities_score', None) or 50,
+        'schools': scores.education_score,
+        'healthcare': scores.healthcare_score,
+        'affordability': getattr(scores, 'affordability_score', None) or 50,
+        'nightlife': getattr(scores, 'nightlife_score', None) or 50,
+        'parks': scores.environment_score or 50,
+        'traffic': 100 - scores.connectivity_score,  # Inverse of connectivity
+    }
+
+    # Calculate personalized score
+    result = await personalize_neighborhood_score(neighborhood_metrics, request.priorities)
+
+    return PersonalizedScoreResponse(
+        personalizedScore=result['personalizedScore'],
+        factorBreakdown=result['factorBreakdown'],
+        strongestFactors=result['strongestFactors'],
+        weakestFactors=result['weakestFactors'],
+    )
+
+==================== BACKEND/ROUTES/SUMMARY.PY ====================
+from fastapi import APIRouter, HTTPException, Depends
+from backend.schemas.neighborhood import AISummaryRequest, AISummaryResponse
+from backend.services.personalization import generate_personalization_insight
+from sqlalchemy.orm import Session
+from backend.database.connection import get_db
+from backend.database.models import Neighborhood
+
+router = APIRouter(prefix="/summary", tags=["summary"])
+
+
+@router.post("", response_model=AISummaryResponse)
+async def generate_summary(
+    request: AISummaryRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate AI insight for a personalized neighborhood score.
+
+    Takes personalized score data and generates a 150-200 word explanation of:
+    - Why the personalized score resulted from the priorities
+    - Which priorities influenced the score most
+    - Important trade-offs
+    - Who this neighborhood is best suited for
+    - Practical observations
+    """
+    # Fetch neighborhood
+    neighborhood = db.query(Neighborhood).filter(
+        Neighborhood.id == request.neighborhood_id
+    ).first()
+
+    if not neighborhood:
+        raise HTTPException(status_code=404, detail="Neighborhood not found")
+
+    # Validate factor breakdown
+    if not request.factorBreakdown:
+        raise HTTPException(
+            status_code=400, detail="Factor breakdown data required"
+        )
+
+    # Get strongest and weakest factors from factor breakdown
+    sorted_factors = sorted(
+        request.factorBreakdown.items(), key=lambda x: x[1], reverse=True
+    )
+    strongest_factors = [f[0] for f in sorted_factors[:3]]
+    weakest_factors = [f[0] for f in sorted_factors[-3:]]
+
+    # Generate AI insight
+    insight = await generate_personalization_insight(
+        neighborhood_name=neighborhood.name,
+        personalized_score=request.personalizedScore,
+        priorities=request.priorities,
+        factor_breakdown=request.factorBreakdown,
+        strongest_factors=strongest_factors,
+        weakest_factors=weakest_factors,
+    )
+
+    return AISummaryResponse(summary=insight)
+
+==================== BACKEND/SERVICES/SCORING.PY ====================
+"""
+Scoring service for calculating neighborhood scores.
+Handles both raw scores and personalized priority-based scoring.
+"""
+
+# Map priority factors to neighborhood metric fields
+FACTOR_MAPPING = {
+    'Safety & Crime': 'safety',
+    'Environment & Air Quality': 'environment',
+    'Public Transport': 'transport',
+    'Basic Amenities': 'amenities',
+    'Schools': 'schools',
+    'Healthcare': 'healthcare',
+    'Affordability': 'affordability',
+    'Nightlife': 'nightlife',
+    'Parks & Recreation': 'parks',
+    'Traffic & Commute': 'traffic',
+}
+
+# All possible factors
+ALL_FACTORS = list(FACTOR_MAPPING.keys())
+
+def calculate_personalized_score(
+    neighborhood_metrics: dict,
+    priorities: list[str],
+) -> dict:
+    """
+    Calculate a personalized neighborhood score based on user's top 5 priorities.
+
+    Algorithm:
+    1. Assign weights based on ranking: rank 1=10, 2=8, 3=6, 4=4, 5=2
+    2. Unselected factors get weight 1
+    3. Normalize weights to sum to 1.0
+    4. Calculate weighted average using neighborhood metrics
+    5. Return personalized score and factor breakdown
+    """
+    if not priorities or len(priorities) != 5:
+        raise ValueError('Exactly 5 priorities must be provided')
+
+    if len(set(priorities)) != 5:
+        raise ValueError('Priorities must be unique')
+
+    # Initialize raw weights
+    weights = {}
+
+    # Assign weights based on priority ranking (1-5)
+    rank_weights = {
+        0: 10,  # Rank 1 (first in list)
+        1: 8,   # Rank 2
+        2: 6,   # Rank 3
+        3: 4,   # Rank 4
+        4: 2,   # Rank 5
+    }
+
+    for rank, priority in enumerate(priorities):
+        metric_key = FACTOR_MAPPING.get(priority)
+        if metric_key:
+            weights[metric_key] = rank_weights[rank]
+
+    # Assign default weight (1) to unselected factors
+    for factor in ALL_FACTORS:
+        metric_key = FACTOR_MAPPING.get(factor)
+        if metric_key not in weights:
+            weights[metric_key] = 1
+
+    # Normalize weights
+    total_weight = sum(weights.values())
+    normalized_weights = {k: v / total_weight for k, v in weights.items()}
+
+    # Calculate weighted average
+    personalized_score = 0.0
+    factor_breakdown = {}
+
+    for factor in ALL_FACTORS:
+        metric_key = FACTOR_MAPPING.get(factor)
+        metric_value = neighborhood_metrics.get(metric_key, 50)
+        weight = normalized_weights.get(metric_key, 0)
+
+        # Store factor score
+        factor_breakdown[factor] = metric_value
+
+        # Add to weighted sum
+        personalized_score += metric_value * weight
+
+    # Identify strongest and weakest factors
+    sorted_factors = sorted(factor_breakdown.items(), key=lambda x: x[1], reverse=True)
+    strongest_factors = [f[0] for f in sorted_factors[:3]]
+    weakest_factors = [f[0] for f in sorted_factors[-3:]]
+
+    return {
+        'personalizedScore': round(personalized_score, 1),
+        'factorBreakdown': factor_breakdown,
+        'strongestFactors': strongest_factors,
+        'weakestFactors': weakest_factors,
+    }
+
+==================== END ====================
