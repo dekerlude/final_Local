@@ -20,9 +20,7 @@ import { ComparisonHeader } from "@/components/compare/ComparisonHeader";
 import { ScoreComparison } from "@/components/compare/ScoreComparison";
 import { CategoryComparison } from "@/components/compare/CategoryComparison";
 import { NeighborhoodComparison } from "@/components/compare/NeighborhoodComparison";
-import { ProfileSelector } from "@/components/dashboard/ProfileSelector";
-
-import { PROFILE_DEFINITIONS, UserProfile } from "@/constants/profiles";
+ 
 import { searchLocalitySuggestions, LocalitySuggestion } from "@/services/search";
 import { CompareResponse } from "@/types/compare";
 import { LocalityReport } from "@/types/locality";
@@ -276,7 +274,6 @@ function SearchBox({ label, query, setQuery, onEnter, placeholder }: SearchBoxPr
 // Compare Page Main Component
 export default function ComparePage() {
   const router = useRouter();
-  const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
 
   const [queryA, setQueryA] = useState("");
   const [queryB, setQueryB] = useState("");
@@ -285,21 +282,7 @@ export default function ComparePage() {
   const [result, setResult] = useState<CompareResponse | null>(null);
   const [recentComparisons, setRecentComparisons] = useState<RecentComparison[]>([]);
 
-  // Initialize selected profile from localStorage user settings if available
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("user_preferences");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.favoriteProfile) {
-          setSelectedProfile(parsed.favoriteProfile);
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to load user preferences from localStorage", e);
-    }
-  }, []);
-
+ 
   // Set default comparison search fields to Sector 17 and Sector 22 Chandigarh
   useEffect(() => {
     setQueryA("Sector 17, Chandigarh");
@@ -452,19 +435,8 @@ export default function ComparePage() {
   const n1Data = result ? mapResponseToComparisonData(result.locationA) : null;
   const n2Data = result ? mapResponseToComparisonData(result.locationB) : null;
 
-  // Calculate client-side personalized score based on selected profile (No extra Claude calls)
-  const calculatePersonalizedScore = (data: NeighborhoodComparisonData, profile: UserProfile | null) => {
-    if (!profile) return data.overall_score;
-    const weights = PROFILE_DEFINITIONS[profile].weights;
-    let score = 0;
-    Object.entries(weights).forEach(([cat, weight]) => {
-      score += (data.categoryScores[cat] || 50) * weight;
-    });
-    return Math.max(0, Math.min(100, Math.round(score)));
-  };
-
-  const profile1Score = n1Data ? calculatePersonalizedScore(n1Data, selectedProfile) : 0;
-  const profile2Score = n2Data ? calculatePersonalizedScore(n2Data, selectedProfile) : 0;
+  const profile1Score = n1Data ? n1Data.overall_score : 0;
+  const profile2Score = n2Data ? n2Data.overall_score : 0;
 
   const categoryComparison = n1Data && n2Data ? [
     { category: "SAFETY", score1: n1Data.categoryScores.SAFETY, score2: n2Data.categoryScores.SAFETY },
@@ -620,29 +592,7 @@ export default function ComparePage() {
                 score2={profile2Score}
               />
 
-              {/* Profile Selector Personalization blueprint */}
-              <motion.section
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                className="space-y-6"
-              >
-                <div>
-                  <h2 className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-[#01472e]">
-                    Personalize Comparison
-                  </h2>
-                  <p className="text-xs text-[#01472e]/60 mt-1">
-                    Select your lifestyle blueprint to recalculate overall compatibility scores
-                  </p>
-                </div>
-
-                <ProfileSelector
-                  selectedProfile={selectedProfile}
-                  onSelect={setSelectedProfile}
-                />
-              </motion.section>
-
+ 
               {/* Side-by-side interactive OpenStreetMap embeds */}
               <motion.section
                 initial={{ opacity: 0, y: 50 }}
