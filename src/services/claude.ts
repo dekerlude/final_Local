@@ -418,46 +418,46 @@ Generate a concise 150-250 word personalized analysis explaining why this neighb
       partial?.highlights && partial.highlights.length > 0
         ? partial.highlights
         : [
-            `${census?.totalAmenities ?? 20}+ cataloged civic amenities in immediate vicinity`,
-            context.airQuality ? `Real-time Air Quality: ${context.airQuality.category} (AQI ${context.airQuality.aqi})` : "Active urban monitoring zone",
-            `Connected transit corridors across ${city}`,
-            `Commercial and residential infrastructure`,
-          ];
+          `${census?.totalAmenities ?? 20}+ cataloged civic amenities in immediate vicinity`,
+          context.airQuality ? `Real-time Air Quality: ${context.airQuality.category} (AQI ${context.airQuality.aqi})` : "Active urban monitoring zone",
+          `Connected transit corridors across ${city}`,
+          `Commercial and residential infrastructure`,
+        ];
 
     const education =
       partial?.education && partial.education.length > 0
         ? partial.education
         : census?.topSchools && census.topSchools.length > 0
-        ? census.topSchools
-        : ["Regional Educational Institutes", "Primary & Secondary Academies"];
+          ? census.topSchools
+          : ["Regional Educational Institutes", "Primary & Secondary Academies"];
 
     const healthcare =
       partial?.healthcare && partial.healthcare.length > 0
         ? partial.healthcare
         : census?.topHospitals && census.topHospitals.length > 0
-        ? census.topHospitals
-        : ["Multi-Specialty Medical Facilities", "Community Healthcare Centers"];
+          ? census.topHospitals
+          : ["Multi-Specialty Medical Facilities", "Community Healthcare Centers"];
 
     const markets =
       partial?.markets && partial.markets.length > 0
         ? partial.markets
         : census?.topMarkets && census.topMarkets.length > 0
-        ? census.topMarkets
-        : ["Local Retail Plazas", "Commercial Shopping Centers"];
+          ? census.topMarkets
+          : ["Local Retail Plazas", "Commercial Shopping Centers"];
 
     const restaurants =
       partial?.restaurants && partial.restaurants.length > 0
         ? partial.restaurants
         : census?.topRestaurants && census.topRestaurants.length > 0
-        ? census.topRestaurants
-        : ["Local Cafes & Dining", "Culinary Establishments"];
+          ? census.topRestaurants
+          : ["Local Cafes & Dining", "Culinary Establishments"];
 
     const parks =
       partial?.parks && partial.parks.length > 0
         ? partial.parks
         : census?.topParks && census.topParks.length > 0
-        ? census.topParks
-        : ["Civic Parks & Green Spaces", "Community Recreational Grounds"];
+          ? census.topParks
+          : ["Civic Parks & Green Spaces", "Community Recreational Grounds"];
 
     const touristPlaces =
       partial?.touristPlaces && partial.touristPlaces.length > 0
@@ -478,18 +478,18 @@ Generate a concise 150-250 word personalized analysis explaining why this neighb
       partial?.pros && partial.pros.length > 0
         ? partial.pros
         : [
-            `High amenity density with ${census?.totalAmenities ?? "numerous"} verified facilities nearby`,
-            `Convenient access to local healthcare, education, and shopping`,
-            `Established community infrastructure`,
-          ];
+          `High amenity density with ${census?.totalAmenities ?? "numerous"} verified facilities nearby`,
+          `Convenient access to local healthcare, education, and shopping`,
+          `Established community infrastructure`,
+        ];
 
     const cons =
       partial?.cons && partial.cons.length > 0
         ? partial.cons
         : [
-            "Peak hour traffic congestion on main arterial avenues",
-            "Variable parking availability during commercial hours",
-          ];
+          "Peak hour traffic congestion on main arterial avenues",
+          "Variable parking availability during commercial hours",
+        ];
 
     const newsItems: LocalityNewsItem[] =
       context.items
@@ -523,7 +523,7 @@ Generate a concise 150-250 word personalized analysis explaining why this neighb
       }
       return Math.abs(hash);
     };
-    
+
     const seed = hashStr(name);
     // Returns a score between 5 and 9
     const getScore = (offset: number) => 5 + ((seed + offset) % 5);
