@@ -432,31 +432,7 @@ export default function AppHome() {
           <AdvertisementCarousel />
         </motion.section>
 
-        {/* STATS FOOTER CALLOUT */}
-        <motion.div
-          variants={itemVariants}
-          className="mt-16 rounded-[2.5rem] p-8 sm:p-10 bg-[#ccd5ae]/40 border border-[#01472e]/15 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-[#01472e] flex items-center justify-center text-[#fefae0] shrink-0">
-              <Building2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-xl font-display uppercase text-[#01472e]">
-                Pan-India Coverage
-              </h4>
-              <p className="text-xs sm:text-sm text-[#01472e]/80 font-sans">
-                Search any pin, pincode, or ward in metropolitan or tier-2/3 Indian cities.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => handleNavigateToLocality("Sector 17 Chandigarh")}
-            className="px-6 py-3 rounded-full bg-[#01472e] text-[#fefae0] text-xs font-bold uppercase tracking-wider hover:bg-[#01472e]/90 shadow-md transition-all shrink-0"
-          >
-            Launch Benchmark Analysis
-          </button>
-        </motion.div>
+
       </motion.div>
     </div>
   );

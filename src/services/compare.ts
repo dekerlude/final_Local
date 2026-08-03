@@ -51,7 +51,14 @@ EXPECTED JSON SCHEMA:
   "overall": "Final summary paragraph"
 }`;
 
-    const rawText = await claudeService.executeClaudeRequest(systemPrompt, userPrompt);
+    let rawText: string;
+    try {
+      rawText = await claudeService.executeClaudeRequest(systemPrompt, userPrompt);
+    } catch (err) {
+      console.warn("[CompareService] Claude API unavailable, using fallback comparison:", err);
+      return this.generateFallbackComparison(queryA, reportA, queryB, reportB);
+    }
+
     const jsonStr = claudeService.extractJSON(rawText);
 
     let parsed: unknown;
@@ -68,6 +75,40 @@ EXPECTED JSON SCHEMA:
     }
 
     return validated.data;
+  }
+
+  private generateFallbackComparison(
+    queryA: string,
+    reportA: LocalityReport,
+    queryB: string,
+    reportB: LocalityReport
+  ): ComparisonSummary {
+    const scoreA = reportA.overallScore;
+    const scoreB = reportB.overallScore;
+    const winner = scoreA > scoreB ? queryA : scoreB > scoreA ? queryB : "Tie";
+
+    return {
+      winner,
+      betterForFamilies: scoreA >= scoreB 
+        ? `${queryA} offers a more balanced family-friendly environment with excellent community infrastructure.` 
+        : `${queryB} provides a stronger foundation for families with superior community amenities.`,
+      betterForStudents: reportA.categoryScores.schools >= reportB.categoryScores.schools
+        ? `${queryA} is preferable for students due to its educational proximity.`
+        : `${queryB} is better suited for academic pursuits given its educational ecosystem.`,
+      betterForProfessionals: reportA.categoryScores.trafficAndCommute >= reportB.categoryScores.trafficAndCommute
+        ? `${queryA} is highly suitable for professionals prioritizing commute and connectivity.`
+        : `${queryB} stands out for working professionals due to better transit access.`,
+      betterConnectivity: reportA.categoryScores.publicTransport >= reportB.categoryScores.publicTransport
+        ? `${queryA} provides superior arterial and public transit connectivity.`
+        : `${queryB} maintains a more robust transit and road network.`,
+      betterHealthcare: reportA.categoryScores.healthcare >= reportB.categoryScores.healthcare
+        ? `${queryA} boasts better access to medical and emergency facilities.`
+        : `${queryB} has a more comprehensive healthcare infrastructure.`,
+      betterNightlife: reportA.categoryScores.nightlife >= reportB.categoryScores.nightlife
+        ? `${queryA} has a more vibrant nightlife and culinary scene.`
+        : `${queryB} offers more extensive evening entertainment options.`,
+      overall: `${winner === 'Tie' ? 'Both localities' : winner} presents a compelling proposition based on real-time empirical data. While ${queryA} scores ${scoreA}/100 and ${queryB} scores ${scoreB}/100, the final choice depends on individual lifestyle priorities.`
+    };
   }
 }
 

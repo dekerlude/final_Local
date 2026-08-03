@@ -255,11 +255,13 @@ EXPECTED JSON SCHEMA:
 
           if (res.status === 404) {
             // Model not found on this endpoint version, try next model in fallback list
+            lastError = new ClaudeAPIError(`Claude API returned HTTP 404 for model ${model}`, res.status);
             continue;
           }
 
           if (res.status === 429 || res.status >= 500) {
             // Transient rate limit or server error, trigger retry with backoff
+            lastError = new ClaudeAPIError(`Claude API returned HTTP ${res.status} for model ${model}`, res.status);
             const waitMs = Math.pow(2, attempt) * 1000 + Math.random() * 500;
             console.warn(`[ClaudeService] Claude API HTTP ${res.status} on model ${model}. Retrying in ${Math.round(waitMs)}ms...`);
             await new Promise((r) => setTimeout(r, waitMs));
