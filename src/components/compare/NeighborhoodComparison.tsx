@@ -3,10 +3,9 @@
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Zap, TrendingUp, Map, Home, Lightbulb, Award } from "lucide-react";
+import { Zap, TrendingUp, Map, Home, Lightbulb, Award } from "lucide-react";
 
 interface NeighborhoodStats {
-  population: number;
   walkScore: number;
   priceIndex: number;
   transit: string;
@@ -22,12 +21,6 @@ interface NeighborhoodComparisonProps {
 }
 
 const stats = [
-  {
-    key: "population" as const,
-    label: "Population",
-    icon: Users,
-    format: (v: number) => `${(v / 1000).toFixed(1)}K`,
-  },
   {
     key: "walkScore" as const,
     label: "Walkability Index",

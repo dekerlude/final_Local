@@ -10,7 +10,7 @@ export interface CacheEntry {
   data: LocalityReport;
 }
 
-const CACHE_VERSION = "1.0.0";
+const CACHE_VERSION = "1.0.1";
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
 const LOCAL_STORAGE_KEY_PREFIX = "locallens_cache_";
 

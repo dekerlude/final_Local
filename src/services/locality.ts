@@ -98,8 +98,11 @@ export class LocalityService {
     aiOutput: RawLocalityAIOutput
   ): LocalityCategoryScores {
     const s = aiOutput.scores || {};
-    // Ensure all scores are safely scaled up to 100 (1-10 scale from Claude) and fallback to 50 if missing
-    const scale = (val?: number) => (typeof val === 'number' ? Math.round(val * 10) : 50);
+    // Ensure all scores are safely bounded to 1-100 (handling legacy 1-10 scale gracefully just in case)
+    const scale = (val?: number) => {
+      if (typeof val !== 'number') return 50;
+      return val <= 10 ? Math.round(val * 10) : Math.min(100, Math.max(1, Math.round(val)));
+    };
 
     return {
       safetyAndCrime: scale(s.safetyAndCrime),

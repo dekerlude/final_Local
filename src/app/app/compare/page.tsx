@@ -30,7 +30,6 @@ interface NeighborhoodComparisonData {
   id: number | string;
   name: string;
   overall_score: number;
-  population: number;
   area_sqmi: number;
   latitude: number;
   longitude: number;
@@ -91,7 +90,6 @@ const mapResponseToComparisonData = (res: LocalityReport): NeighborhoodCompariso
     id: res.id,
     name: res.localityName,
     overall_score: res.overallScore,
-    population: parseInt(res.population?.replace(/[^0-9]/g, "") || "0", 10) || 120000,
     area_sqmi: res.poiCensus?.radiusKm ? Math.round(Math.PI * Math.pow(res.poiCensus.radiusKm, 2) * 0.3861) : 2.5,
     latitude: res.latitude,
     longitude: res.longitude,
@@ -108,7 +106,6 @@ const mapResponseToComparisonData = (res: LocalityReport): NeighborhoodCompariso
 
 const deriveStatsFromData = (data: NeighborhoodComparisonData) => {
   return {
-    population: data.population,
     walkScore: Math.round(data.categoryScores.CONNECTIVITY * 1.1),
     priceIndex: Math.round(100 - data.categoryScores.INFRASTRUCTURE * 0.8),
     transit: data.categoryScores.CONNECTIVITY > 80 ? "Excellent" : data.categoryScores.CONNECTIVITY > 60 ? "Good" : "Fair",

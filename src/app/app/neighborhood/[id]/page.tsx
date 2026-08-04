@@ -43,7 +43,7 @@ export default function NeighborhoodPage() {
   const [streamProgress, setStreamProgress] = useState(0);
   const [streamMessage, setStreamMessage] = useState("Initializing AI Engine...");
 
-  const fetchLocality = useCallback(async () => {
+  const fetchLocality = useCallback(async (forceRefresh: boolean = false) => {
     if (!decodedQuery.trim()) {
       setError("No locality query provided.");
       setIsLoading(false);
@@ -51,12 +51,14 @@ export default function NeighborhoodPage() {
     }
 
     // Check client-side cache first
-    const cachedData = clientCache.get(decodedQuery);
-    if (cachedData) {
-      console.log(`[Cache Debug] Cache Hit (Memory/localStorage) for: "${decodedQuery}"`);
-      setReport(cachedData);
-      setIsLoading(false);
-      return;
+    if (!forceRefresh) {
+      const cachedData = clientCache.get(decodedQuery);
+      if (cachedData) {
+        console.log(`[Cache Debug] Cache Hit (Memory/localStorage) for: "${decodedQuery}"`);
+        setReport(cachedData);
+        setIsLoading(false);
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -211,7 +213,7 @@ export default function NeighborhoodPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button
-                onClick={() => fetchLocality()}
+                onClick={() => fetchLocality(true)}
                 className="w-full sm:w-auto bg-[#01472e] text-[#fefae0] hover:bg-[#01472e]/90 gap-2"
               >
                 <RotateCcw className="w-4 h-4" /> Retry Analysis
@@ -255,7 +257,7 @@ export default function NeighborhoodPage() {
               </Button>
 
               <button
-                onClick={() => fetchLocality()}
+                onClick={() => fetchLocality(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#fefae0] hover:bg-[#e9edc9] border border-[#01472e]/15 text-xs font-bold text-[#01472e] transition-all"
                 title="Refresh AI Analysis"
               >

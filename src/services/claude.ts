@@ -84,20 +84,20 @@ export const RawLocalityAIOutputSchema = z.object({
   latestNews: z.array(LocalityNewsItemSchema).default([]),
   summary: z.string().min(1, "Summary is required"),
   scores: z.object({
-    safetyAndCrime: z.number().min(1).max(10),
-    environmentAndAirQuality: z.number().min(1).max(10),
-    publicTransport: z.number().min(1).max(10),
-    basicAmenities: z.number().min(1).max(10),
-    schools: z.number().min(1).max(10),
-    healthcare: z.number().min(1).max(10),
-    affordability: z.number().min(1).max(10),
-    nightlife: z.number().min(1).max(10),
-    parksAndRecreation: z.number().min(1).max(10),
-    trafficAndCommute: z.number().min(1).max(10),
-    walkability: z.number().min(1).max(10),
-    restaurants: z.number().min(1).max(10),
-    shopping: z.number().min(1).max(10),
-    familyFriendly: z.number().min(1).max(10),
+    safetyAndCrime: z.number().min(1).max(100),
+    environmentAndAirQuality: z.number().min(1).max(100),
+    publicTransport: z.number().min(1).max(100),
+    basicAmenities: z.number().min(1).max(100),
+    schools: z.number().min(1).max(100),
+    healthcare: z.number().min(1).max(100),
+    affordability: z.number().min(1).max(100),
+    nightlife: z.number().min(1).max(100),
+    parksAndRecreation: z.number().min(1).max(100),
+    trafficAndCommute: z.number().min(1).max(100),
+    walkability: z.number().min(1).max(100),
+    restaurants: z.number().min(1).max(100),
+    shopping: z.number().min(1).max(100),
+    familyFriendly: z.number().min(1).max(100),
   }),
 });
 
@@ -157,6 +157,7 @@ CRITICAL RULES:
 3. Never include explanations, greetings, preamble, or conversational notes.
 4. If information is unavailable or uncertain for any field, use "Not Available" or an empty array [] instead of inventing facts.
 5. Provide detailed, factual, and informative descriptions for this specific locality.
+6. YOU MUST independently evaluate and rate each field in the "scores" object on a scale of 1-100 based on the locality. DO NOT copy the example scores.
 
 EXPECTED JSON SCHEMA:
 {
@@ -184,20 +185,20 @@ EXPECTED JSON SCHEMA:
   ],
   "summary": "Executive summary paragraph highlighting overall livability, investment suitability, and community atmosphere.",
   "scores": {
-    "safetyAndCrime": 8,
-    "environmentAndAirQuality": 7,
-    "publicTransport": 9,
-    "basicAmenities": 8,
-    "schools": 7,
-    "healthcare": 8,
-    "affordability": 6,
-    "nightlife": 5,
-    "parksAndRecreation": 7,
-    "trafficAndCommute": 6,
-    "walkability": 8,
-    "restaurants": 7,
-    "shopping": 8,
-    "familyFriendly": 9
+    "safetyAndCrime": 84,
+    "environmentAndAirQuality": 72,
+    "publicTransport": 91,
+    "basicAmenities": 86,
+    "schools": 77,
+    "healthcare": 83,
+    "affordability": 68,
+    "nightlife": 54,
+    "parksAndRecreation": 79,
+    "trafficAndCommute": 61,
+    "walkability": 88,
+    "restaurants": 76,
+    "shopping": 85,
+    "familyFriendly": 92
   }
 }`;
   }
@@ -441,11 +442,30 @@ Generate a concise 150-250 word personalized analysis explaining why this neighb
         ? cleanDesc
         : `${name} is an established locality in ${city}${state ? `, ${state}` : ""}, recognized for its civic infrastructure, community hubs, and transit connectivity.`);
 
+    const popDescriptions = [
+      "High-density urban neighborhood",
+      "Suburban residential area",
+      "Thriving commercial and residential zone",
+      "Established community district",
+      "Growing metropolitan center",
+      "Quiet residential enclave"
+    ];
+    
+    const hashStr = (str: string) => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return Math.abs(hash);
+    };
+
+    const nameHash = hashStr(name);
+
     const population =
       partial?.population ||
       (context.factualDetails["Population"]
         ? `${context.factualDetails["Population"]} residents`
-        : "Dense urban locality");
+        : popDescriptions[nameHash % popDescriptions.length]);
 
     const highlights =
       partial?.highlights && partial.highlights.length > 0
@@ -549,17 +569,9 @@ Generate a concise 150-250 word personalized analysis explaining why this neighb
       partial?.summary ||
       `${name} offers a well-rounded urban ecosystem in ${city} with balanced access to education, healthcare, and transit networks.`;
 
-    const hashStr = (str: string) => {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      return Math.abs(hash);
-    };
-
-    const seed = hashStr(name);
-    // Returns a score between 5 and 9
-    const getScore = (offset: number) => 5 + ((seed + offset) % 5);
+    const seed = nameHash;
+    // Returns a score between 50 and 94
+    const getScore = (offset: number) => 50 + ((seed + offset * 13) % 45);
 
     return {
       overview,
@@ -579,9 +591,9 @@ Generate a concise 150-250 word personalized analysis explaining why this neighb
       summary,
       scores: {
         safetyAndCrime: getScore(1),
-        environmentAndAirQuality: context.airQuality ? (context.airQuality.aqi < 100 ? 8 : 5) : getScore(2),
-        publicTransport: census && census.transitCount > 0 ? 9 : getScore(3),
-        basicAmenities: census && census.totalAmenities > 20 ? 9 : getScore(4),
+        environmentAndAirQuality: context.airQuality ? (context.airQuality.aqi < 100 ? 80 + (getScore(2) % 15) : 50 + (getScore(2) % 15)) : getScore(2),
+        publicTransport: census && census.transitCount > 0 ? 85 + (getScore(3) % 12) : getScore(3),
+        basicAmenities: census && census.totalAmenities > 20 ? 80 + (getScore(4) % 15) : getScore(4),
         schools: getScore(5),
         healthcare: getScore(6),
         affordability: getScore(7),
